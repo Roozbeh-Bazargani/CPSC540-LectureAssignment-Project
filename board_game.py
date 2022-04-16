@@ -1,24 +1,28 @@
 import pygame
+import numpy as np
+import random
 
 GRID_SIZE = 10
 
 grid = [
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
-[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[1, 1, 1, 1, 1, 0, 0, 1, 0, 0],
+[0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+[0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
+[0, 1, 1, 0, 1, 0, 0, 1, 0, 0],
+[0, 0, 1, 0, 1, 0, 0, 1, 0, 0],
+[0, 0, 1, 0, 1, 0, 0, 1, 0, 0],
+[0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
 ]
 
 class Player:
     def __init__(self, movements_txt):
         self.x = 0
         self.y = GRID_SIZE - 1
+        self.goal_x = GRID_SIZE - 1
+        self.goal_y = 0
         self.path = []
         self.movements = movements_txt.split(", ")
 
@@ -49,6 +53,12 @@ class Player:
             if move == 'DR':
                 self.y = self.y + 1
                 self.x = self.x + 1
+            if move == 'UL':
+                self.y = self.y - 1
+                self.x = self.x - 1
+            if move == 'DL':
+                self.y = self.y + 1
+                self.x = self.x - 1
 
             if not self.movement_allowed():
                 return None
@@ -122,11 +132,67 @@ class App:
 class Agent(object):
     def __init__(self, grid):
         self.grid = grid
-    def solve():
-        pass
+        self.start = np.array([0, GRID_SIZE - 1])
+        self.goal = np.array([GRID_SIZE - 1, 0])
+    def solve(self):
+        action_list = ['R', 'L', 'U', 'D', 'UR', 'DR', 'UL', 'DL']#, 'S']
+        actions = {'R': np.array([1, 0]), 'L': np.array([-1, 0]), 'U': np.array([0, -1]), 'D': np.array([0, 1]),
+                   'UR': np.array([1, -1]), 'DR': np.array([1, 1]), 'UL': np.array([-1, -1]), 'DL': np.array([-1, 1])}#, 'S': np.array([0,0])}
+        alpha = 0.9
+        gama = 0.9
+        max_iter = 50
+        ## Solve here ##
+        # Q = {'R': np.zeros((GRID_SIZE, GRID_SIZE)), 'L': np.zeros((GRID_SIZE, GRID_SIZE)), 'U': np.zeros((GRID_SIZE, GRID_SIZE)), 'D': np.zeros((GRID_SIZE, GRID_SIZE)),
+        #      'UR': np.zeros((GRID_SIZE, GRID_SIZE)), 'DR': np.zeros((GRID_SIZE, GRID_SIZE)), 'UL': np.zeros((GRID_SIZE, GRID_SIZE)), 'DL': np.zeros((GRID_SIZE, GRID_SIZE))}
+        Q = np.ones((len(action_list), GRID_SIZE, GRID_SIZE)) * (-20)
+        V = np.ones((GRID_SIZE, GRID_SIZE)) * (-20)
+        Policy = [[None for x in range(GRID_SIZE)] for y in range(GRID_SIZE)]
+        for iter in range(max_iter):
+            delta = 0
+            for x in range(GRID_SIZE):
+                for y in range(GRID_SIZE):
+                    state = np.array([x, y])
+                    V_old = V[x,y]
+                    for i in range(len(action_list)):
+                        a = action_list[i]
+                        action = actions[a]
+                        state_n = state + action # next state
+                        if (state_n > 9).any() or (state_n < 0).any():
+                            continue
+                        R = -np.linalg.norm(action)
+                        if grid[state_n[1]][state_n[0]]:
+                            R = -1000
+                        elif (state_n == self.goal).all():
+                            R = 10
+                        # updating
+                        Q[i,x, y] = (1 - alpha)*Q[i,x, y] + alpha*(R + gama*np.max(Q[:,state_n[0], state_n[1]]))
+                    V[x,y] = np.max(Q[:,x, y])
+                    # print('hii', Q[:,x, y])
+                    Policy[x][y] = action_list[np.argmax(Q[:,x, y])]
+                    delta = np.maximum(delta, np.abs(V[x,y] - V_old))
+
+        state = self.start
+        path = ''
+        # print(Q[0])
+        # print(V)
+        # print(Policy)
+        while (state != self.goal).any():
+            # print(state[0], state[1])
+            a = Policy[state[0]][state[1]]
+            path += a + ', '
+            action = actions[a]
+            state += action
+        return path[:-2]
+
+
+
+        ## END ##
         
 if __name__ == "__main__" :
-    player_movements_txt = 'R, U, U, U, U, U, U, U, U, U, R, R, R, R, R, R, R, R'
+    agent = Agent(grid)
+    player_movements_txt = agent.solve()
+    print(player_movements_txt)
+    # player_movements_txt = 'R, U, U, U, U, U, U, U, U, U, R, R, R, R, R, R, R, R'
     # player_movements_txt = Agent(grid).solve()
     theApp = App(player_movements_txt)
     theApp.on_execute()

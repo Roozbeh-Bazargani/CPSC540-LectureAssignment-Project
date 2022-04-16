@@ -6,36 +6,45 @@ GRID_SIZE = 10
 
 grid = [
 [0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
-[0, 1, 1, 1, 1, 1, 1, 1, 0, 0],
 [0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
-[1, 1, 1, 1, 1, 0, 0, 1, 0, 0],
-[0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
-[0, 0, 0, 0, 1, 0, 0, 1, 0, 0],
-[0, 1, 1, 0, 1, 0, 0, 1, 0, 0],
-[0, 0, 1, 0, 1, 0, 0, 1, 0, 0],
-[0, 0, 1, 0, 1, 0, 0, 1, 0, 0],
-[0, 0, 1, 0, 0, 0, 0, 1, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 1, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 1, 0, 0, 0, 0, 0, 0, 0],
+[0, 0, 0, 0, 0, 0, 0, 0, 0, 0],
 ]
 
 class Player:
-    def __init__(self, movements_txt):
+    def __init__(self, movements_txt, goal):
         self.x = 0
         self.y = GRID_SIZE - 1
-        self.goal_x = GRID_SIZE - 1
-        self.goal_y = 0
+        self.goal_x = goal[0] #GRID_SIZE - 1
+        self.goal_y = goal[1] #0
         self.path = []
         self.movements = movements_txt.split(", ")
 
-    def movement_allowed(self):
+    def movement_in_board(self):
         if (self.x < 0) or (self.x >= GRID_SIZE):
             return False
         if (self.y < 0) or (self.y >= GRID_SIZE):
             return False
+        return True
+
+    def movement_allowed(self):
         if grid[self.y][self.x] == 1:
             return False
         return True
 
+    def goal_reached(self):
+        if (self.y == self.goal_y) and (self.x == self.goal_x):
+            return True
+        return False
+
     def find_player_path(self):
+        path_allowed = True
         self.path.append((self.y, self.x))
 
         for move in self.movements:
@@ -61,15 +70,22 @@ class Player:
                 self.x = self.x - 1
 
             if not self.movement_allowed():
+                path_allowed = False
+
+            if not self.movement_in_board():
                 return None
             else:
                 self.path.append((self.y, self.x))
-        return self.path
+
+        return self.path, path_allowed, self.goal_reached()
 
 class App:
     black = (0, 0, 0)
     white = (255, 255, 255)
     blue = (50, 127, 168)
+    red = (255, 0, 0)
+    green = (0,255,0)
+    orange = (255,215,0)
 
     WIDTH = 20
     HEIGHT = 20
@@ -77,11 +93,10 @@ class App:
 
     window_size = [255, 255]
 
-    def __init__(self, movements_txt):
+    def __init__(self, movements_txt, goal):
         self._running = True
-        # self._display_surf = None
-        # self._image_surf = None
         self.player_movements_txt = movements_txt
+        self.goal = goal
 
     def on_init(self):
         pygame.init()
@@ -97,19 +112,30 @@ class App:
         pygame.quit()
 
     def on_render(self):
-        player_path = Player(self.player_movements_txt).find_player_path()
+        player_path, player_path_allowed, player_goal_reached = Player(self.player_movements_txt, self.goal).find_player_path()
         if player_path is None:
-            print("The set of movements is not allowed.")
+            print("The set of movements is not allowed. (you've moved outside of the board range)")
             self.done=True
-            # self.on_cleanup()
+        # if not player_path_allowed:
+        #     print("The set of movements is not allowed. (you've moved in the blocked cells")
+        # if not player_goal_reached:
+        #     print("Your agent didn't reach the goal.")
 
         self.scr.fill(self.black)
         for row in range(GRID_SIZE):
             for column in range(GRID_SIZE):
                 color = self.white
                 if (row, column) in player_path:
-                    color = self.blue
-                if grid[row][column] == 1:
+                    if grid[row][column] == 1:
+                        color = self.red
+                    elif player_path.index((row, column)) == (len(player_path)-1):
+                        if player_goal_reached:
+                            color = self.green
+                        else:
+                            color = self.orange
+                    else:
+                        color = self.blue
+                elif grid[row][column] == 1:
                     color = self.black
                 pygame.draw.rect(self.scr,
                                  color,
@@ -130,10 +156,10 @@ class App:
 
 # Students Should complete this code for the assignment
 class Agent(object):
-    def __init__(self, grid):
+    def __init__(self, grid, goal):
         self.grid = grid
         self.start = np.array([0, GRID_SIZE - 1])
-        self.goal = np.array([GRID_SIZE - 1, 0])
+        self.goal = np.array(goal)
     def solve(self):
         action_list = ['R', 'L', 'U', 'D', 'UR', 'DR', 'UL', 'DL']#, 'S']
         actions = {'R': np.array([1, 0]), 'L': np.array([-1, 0]), 'U': np.array([0, -1]), 'D': np.array([0, 1]),
@@ -189,11 +215,10 @@ class Agent(object):
         ## END ##
         
 if __name__ == "__main__" :
-    agent = Agent(grid)
-    player_movements_txt = agent.solve()
+    goal = [GRID_SIZE - 1, 0]
+    # player_movements_txt = 'R, U, U, U, U, U, U, U, U, U, R, R, R, DR, R, R, R, UR'
+    player_movements_txt = Agent(grid, goal).solve()
     print(player_movements_txt)
-    # player_movements_txt = 'R, U, U, U, U, U, U, U, U, U, R, R, R, R, R, R, R, R'
-    # player_movements_txt = Agent(grid).solve()
-    theApp = App(player_movements_txt)
+    theApp = App(player_movements_txt, goal)
     theApp.on_execute()
 

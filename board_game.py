@@ -18,9 +18,9 @@ grid = [
 ]
 
 class Player:
-    def __init__(self, movements_txt, goal):
-        self.x = 0
-        self.y = GRID_SIZE - 1
+    def __init__(self, movements_txt, start, goal):
+        self.x = start[0] #0
+        self.y = start[1] #GRID_SIZE - 1
         self.goal_x = goal[0] #GRID_SIZE - 1
         self.goal_y = goal[1] #0
         self.path = []
@@ -93,9 +93,10 @@ class App:
 
     window_size = [255, 255]
 
-    def __init__(self, movements_txt, goal):
+    def __init__(self, movements_txt, start, goal):
         self._running = True
         self.player_movements_txt = movements_txt
+        self.start = start
         self.goal = goal
 
     def on_init(self):
@@ -112,7 +113,7 @@ class App:
         pygame.quit()
 
     def on_render(self):
-        player_path, player_path_allowed, player_goal_reached = Player(self.player_movements_txt, self.goal).find_player_path()
+        player_path, player_path_allowed, player_goal_reached = Player(self.player_movements_txt, self.start, self.goal).find_player_path()
         if player_path is None:
             print("The set of movements is not allowed. (you've moved outside of the board range)")
             self.done=True
@@ -156,9 +157,9 @@ class App:
 
 # Students Should complete this code for the assignment
 class Agent(object):
-    def __init__(self, grid, goal):
+    def __init__(self, grid, start, goal):
         self.grid = grid
-        self.start = np.array([0, GRID_SIZE - 1])
+        self.start = np.array(start)
         self.goal = np.array(goal)
     def solve(self):
         action_list = ['R', 'L', 'U', 'D', 'UR', 'DR', 'UL', 'DL']#, 'S']
@@ -215,10 +216,11 @@ class Agent(object):
         ## END ##
         
 if __name__ == "__main__" :
+    start = [0, GRID_SIZE - 1]
     goal = [GRID_SIZE - 1, 0]
     # player_movements_txt = 'R, U, U, U, U, U, U, U, U, U, R, R, R, DR, R, R, R, UR'
-    player_movements_txt = Agent(grid, goal).solve()
+    player_movements_txt = Agent(grid, start, goal).solve()
     print(player_movements_txt)
-    theApp = App(player_movements_txt, goal)
+    theApp = App(player_movements_txt, start, goal)
     theApp.on_execute()
 

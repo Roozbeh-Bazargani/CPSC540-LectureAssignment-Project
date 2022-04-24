@@ -169,6 +169,8 @@ class Agent(object):
         gama = 0.9
         max_iter = 50
         ## Solve here ##
+
+        ## Value Iteration
         # Q = {'R': np.zeros((GRID_SIZE, GRID_SIZE)), 'L': np.zeros((GRID_SIZE, GRID_SIZE)), 'U': np.zeros((GRID_SIZE, GRID_SIZE)), 'D': np.zeros((GRID_SIZE, GRID_SIZE)),
         #      'UR': np.zeros((GRID_SIZE, GRID_SIZE)), 'DR': np.zeros((GRID_SIZE, GRID_SIZE)), 'UL': np.zeros((GRID_SIZE, GRID_SIZE)), 'DL': np.zeros((GRID_SIZE, GRID_SIZE))}
         Q = np.ones((len(action_list), GRID_SIZE, GRID_SIZE)) * (-20)
@@ -197,6 +199,31 @@ class Agent(object):
                     # print('hii', Q[:,x, y])
                     Policy[x][y] = action_list[np.argmax(Q[:,x, y])]
                     delta = np.maximum(delta, np.abs(V[x,y] - V_old))
+
+
+        ## Q-learning
+        Q[:, self.goal[0], self.goal[1]] = 0
+        for iter in range(max_iter):
+            state = self.start
+            while state[0] != self.goal[0] or state[1] != self.goal[1]:
+                # randomly sample an action
+                i = np.random.randint(0, len(action_list))
+                # i = np.argmax(Q[:, state[0], state[1]])
+                a = action_list[i]
+                action = actions[a]
+                state_n = state + action
+                if (state_n >= GRID_SIZE).any() or (state_n < 0).any():
+                    continue
+                R = -np.linalg.norm(action)
+                if grid[state_n[1]][state_n[0]]:
+                    R = -1000
+                elif (state_n == self.goal).all():
+                    R = 10
+                # updating
+                Q[i, state[0], state[1]] = (1 - alpha)*Q[i,state[0], state[1]] + alpha*(R + gama*np.max(Q[:,state_n[0], state_n[1]]))
+                V[state[0], state[1]] = np.max(Q[:, state[0], state[1]])
+                Policy[state[0]][state[1]] = action_list[np.argmax(Q[:, state[0], state[1]])]
+                state = state_n
 
         state = self.start
         path = ''
